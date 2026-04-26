@@ -11,21 +11,17 @@
             --panel-bg: rgba(255, 255, 255, 0.08);
             --text-color: #ffffff;
         }
-
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: var(--bg-color);
             font-family: 'Montserrat', sans-serif; color: var(--text-color);
             user-select: none; touch-action: none;
         }
-
-        canvas { display: block; }
-
+        canvas { display: block; cursor: default; }
+        canvas.grabbing { cursor: grabbing; }
         #ui { position: absolute; top: 30px; left: 30px; pointer-events: none; z-index: 2; }
         h1 { margin: 0; font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
         .inst { font-size: 0.7rem; color: #888; margin-top: 5px; }
-
-        /* Control Panel */
         #controls {
             position: absolute; top: 30px; right: 30px; width: 240px;
             background: var(--panel-bg); backdrop-filter: blur(20px);
@@ -33,25 +29,20 @@
             border: 1px solid rgba(255,255,255,0.1);
             pointer-events: auto;
         }
-
         .control-group { margin-bottom: 15px; }
         label {
             display: flex; justify-content: space-between;
             font-size: 0.65rem; text-transform: uppercase;
             letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; color: #ccc;
         }
-
         input[type="range"], input[type="color"] { width: 100%; cursor: pointer; accent-color: #fff; }
         input[type="color"] { height: 25px; border: none; background: none; padding: 0; }
-
         button.reset-btn {
             width: 100%; padding: 10px; background: rgba(255,255,255,0.05); color: #fff;
             border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;
             font-size: 0.7rem; letter-spacing: 1px; transition: 0.2s; margin-bottom: 15px;
         }
         button.reset-btn:hover { background: #fff; color: #000; }
-
-        /* User Requested Support Section */
         .support-section {
             margin-top: 10px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
@@ -67,167 +58,555 @@
 </head>
 <body>
 
-    <div id="ui">
-        <h1>Jelly Planet</h1>
-        <div class="inst">Click: Create | Double Click: Split | Drag: Poke</div>
+<div id="ui">
+    <h1>Jelly Planet</h1>
+    <div class="inst">Drag & Fling: Launch | Click: Create | Double Click: Split</div>
+</div>
+
+<div id="controls">
+    <div class="control-group">
+        <label>Jelly Color</label>
+        <input type="color" id="jellyColor" value="#ff4d8d">
+    </div>
+    <div class="control-group">
+        <label>Transparency</label>
+        <input type="range" id="opacity" min="0.1" max="1" step="0.05" value="0.8">
+    </div>
+    <div class="control-group">
+        <label>Firmness <span id="firmVal">0.25</span></label>
+        <input type="range" id="firmness" min="0.05" max="0.5" step="0.01" value="0.25">
+    </div>
+    <div class="control-group">
+        <label>Jiggle <span id="jigVal">0.90</span></label>
+        <input type="range" id="jiggle" min="0.80" max="0.96" step="0.01" value="0.90">
+    </div>
+    <div class="control-group">
+        <label>Bounciness <span id="bounceVal">0.70</span></label>
+        <input type="range" id="bounciness" min="0.2" max="1.0" step="0.05" value="0.70">
     </div>
 
-    <div id="controls">
-        <div class="control-group">
-            <label>Jelly Color</label>
-            <input type="color" id="jellyColor" value="#ff4d8d">
-        </div>
-        <div class="control-group">
-            <label>Transparency</label>
-            <input type="range" id="opacity" min="0.1" max="1" step="0.05" value="0.8">
-        </div>
-        <div class="control-group">
-            <label>Firmness (Stiffness)</label>
-            <input type="range" id="firmness" min="0.01" max="0.2" step="0.01" value="0.05">
-        </div>
-        <div class="control-group">
-            <label>Jiggle (Elasticity)</label>
-            <input type="range" id="jiggle" min="0.85" max="0.99" step="0.01" value="0.94">
-        </div>
-        
-        <button class="reset-btn" onclick="clearAll()">RESET WORLD</button>
+    <button class="reset-btn" onclick="clearAll()">RESET WORLD</button>
 
-        <div class="support-section">
-            <a href="https://buymeacoffee.com/globaldaily" target="_blank" class="support-button">🍵 Support Creator</a>
-        </div>
+    <div class="support-section">
+        <a href="https://buymeacoffee.com/globaldaily" target="_blank" class="support-button">🍵 Support Creator</a>
     </div>
+</div>
 
-    <canvas id="canvas"></canvas>
+<canvas id="canvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-        const ui = {
-            color: document.getElementById('jellyColor'),
-            opacity: document.getElementById('opacity'),
-            firmness: document.getElementById('firmness'),
-            jiggle: document.getElementById('jiggle')
-        };
+const uiEl = {
+    color:      document.getElementById('jellyColor'),
+    opacity:    document.getElementById('opacity'),
+    firmness:   document.getElementById('firmness'),
+    jiggle:     document.getElementById('jiggle'),
+    bounciness: document.getElementById('bounciness'),
+    firmVal:    document.getElementById('firmVal'),
+    jigVal:     document.getElementById('jigVal'),
+    bounceVal:  document.getElementById('bounceVal')
+};
 
-        let width, height, jellies = [];
-        let mouse = { x: -1000, y: -1000 };
+let cfg = { damp: 0.90, stiff: 0.25, alpha: 0.8, bounce: 0.70 };
+function readUI() {
+    cfg.damp   = parseFloat(uiEl.jiggle.value);
+    cfg.stiff  = parseFloat(uiEl.firmness.value);
+    cfg.alpha  = parseFloat(uiEl.opacity.value);
+    cfg.bounce = parseFloat(uiEl.bounciness.value);
+    uiEl.firmVal.textContent   = cfg.stiff.toFixed(2);
+    uiEl.jigVal.textContent    = cfg.damp.toFixed(2);
+    uiEl.bounceVal.textContent = cfg.bounce.toFixed(2);
+}
 
-        function hexToRgb(hex) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `${r},${g},${b}`;
+let width, height, jellies = [];
+let time = 0;
+
+let pointer = {
+    x: -1000, y: -1000,
+    px: -1000, py: -1000,
+    down: false,
+    grabbed: null
+};
+
+const palette = [
+    '#ff4d8d','#ff6b9d','#c74dff','#4dc8ff','#4dffb8',
+    '#ffd84d','#ff8a4d','#8d4dff','#4dffe0','#ff4d6a',
+    '#7b68ee','#ff69b4','#00ced1','#ffa07a','#98fb98'
+];
+function randomColor() { return palette[Math.floor(Math.random() * palette.length)]; }
+function hexToRgbArr(hex) {
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+
+/* ── Point ── */
+class Point {
+    constructor(x, y) { this.x = x; this.y = y; this.ox = x; this.oy = y; }
+    update() {
+        let vx = (this.x - this.ox) * cfg.damp;
+        let vy = (this.y - this.oy) * cfg.damp;
+        this.ox = this.x; this.oy = this.y;
+        this.x += vx; this.y += vy;
+
+        if (this.x < 0)      { this.x = 0;     this.ox = this.x + vx * 0.3; }
+        if (this.x > width)  { this.x = width;  this.ox = this.x + vx * 0.3; }
+        if (this.y < 0)      { this.y = 0;     this.oy = this.y + vy * 0.3; }
+        if (this.y > height) { this.y = height; this.oy = this.y + vy * 0.3; }
+    }
+}
+
+/* ── Jelly ── */
+class Jelly {
+    constructor(x, y, r, color, auto) {
+        this.x = x; this.y = y;
+        this.anchorX = x; this.anchorY = y;
+        this.radius = r;
+        this.color = color;
+        this.rgb = hexToRgbArr(color);
+        this.rgbStr  = this.rgb.join(',');
+        this.darkStr = this.rgb.map(v => Math.round(v * 0.35)).join(',');
+        this.numPoints = 24;
+        this.points = [];
+        this.squishAnim = 0;
+        this.autoSpawned = !!auto;
+
+        this.breathPhase = Math.random() * Math.PI * 2;
+        this.breathSpeed = 0.02 + Math.random() * 0.01;
+        this.breathAmp   = r * 0.06;
+
+        this.floatPx = Math.random() * Math.PI * 2;
+        this.floatPy = Math.random() * Math.PI * 2;
+        this.floatSx = 0.003 + Math.random() * 0.004;
+        this.floatSy = 0.002 + Math.random() * 0.003;
+        this.floatAx = 15 + Math.random() * 25;
+        this.floatAy = 12 + Math.random() * 20;
+
+        this.life = auto ? 0 : 1;
+
+        this.flung = false;
+        this.flingVx = 0;
+        this.flingVy = 0;
+        this.held = false;
+        this.collisionCooldown = 0;   // prevents re-triggering same collision
+
+        for (let i = 0; i < this.numPoints; i++) {
+            const a = (i / this.numPoints) * Math.PI * 2;
+            this.points.push(new Point(x + Math.cos(a) * r, y + Math.sin(a) * r));
+        }
+        this.core = new Point(x, y);
+    }
+
+    update(t) {
+        if (this.life < 1) this.life = Math.min(1, this.life + 0.006);
+        if (this.collisionCooldown > 0) this.collisionCooldown--;
+
+        if (this.held) {
+            this.core.x += (pointer.x - this.core.x) * 0.25;
+            this.core.y += (pointer.y - this.core.y) * 0.25;
+        } else if (this.flung) {
+            this.core.x += this.flingVx;
+            this.core.y += this.flingVy;
+            this.flingVx *= 0.985;
+            this.flingVy *= 0.985;
+
+            const wallBounce = cfg.bounce;
+            if (this.core.x < this.radius)          { this.core.x = this.radius;          this.flingVx = Math.abs(this.flingVx) * wallBounce; }
+            if (this.core.x > width - this.radius)  { this.core.x = width - this.radius;  this.flingVx = -Math.abs(this.flingVx) * wallBounce; }
+            if (this.core.y < this.radius)           { this.core.y = this.radius;           this.flingVy = Math.abs(this.flingVy) * wallBounce; }
+            if (this.core.y > height - this.radius) { this.core.y = height - this.radius; this.flingVy = -Math.abs(this.flingVy) * wallBounce; }
+
+            this.core.ox = this.core.x - this.flingVx;
+            this.core.oy = this.core.y - this.flingVy;
+
+            const speed = Math.sqrt(this.flingVx * this.flingVx + this.flingVy * this.flingVy);
+            if (speed < 0.2) {
+                this.flung = false;
+                this.anchorX = this.core.x;
+                this.anchorY = this.core.y;
+                this.core.ox = this.core.x;
+                this.core.oy = this.core.y;
+                this.floatPx = Math.random() * Math.PI * 2;
+                this.floatPy = Math.random() * Math.PI * 2;
+            }
+        } else {
+            const floatX = Math.sin(t * this.floatSx + this.floatPx) * this.floatAx
+                         + Math.sin(t * this.floatSx * 0.6 + this.floatPx + 1.3) * this.floatAx * 0.3;
+            const floatY = Math.sin(t * this.floatSy + this.floatPy) * this.floatAy
+                         + Math.cos(t * this.floatSy * 0.7 + this.floatPy + 2.1) * this.floatAy * 0.3;
+            const targetX = this.anchorX + floatX;
+            const targetY = this.anchorY + floatY;
+            this.core.x += (targetX - this.core.x) * 0.012;
+            this.core.y += (targetY - this.core.y) * 0.012;
+            this.core.update();
         }
 
-        class Point {
-            constructor(x, y) {
-                this.x = x; this.y = y; this.ox = x; this.oy = y;
-            }
-            update(damp) {
-                let vx = (this.x - this.ox) * damp;
-                let vy = (this.y - this.oy) * damp;
-                this.ox = this.x; this.oy = this.y;
-                this.x += vx; this.y += vy;
+        const breath = Math.sin(t * this.breathSpeed + this.breathPhase) * this.breathAmp;
+        const curRadius = this.radius + breath;
+        const segLen = (Math.PI * 2 * curRadius) / this.numPoints;
 
-                let dx = mouse.x - this.x; let dy = mouse.y - this.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 80) {
-                    let angle = Math.atan2(dy, dx);
-                    let force = (80 - dist) * 0.06;
-                    this.x -= Math.cos(angle) * force;
-                    this.y -= Math.sin(angle) * force;
+        let cx = 0, cy = 0;
+        const n = this.numPoints;
+        const stiff = cfg.stiff;
+
+        for (let i = 0; i < n; i++) {
+            const p = this.points[i];
+            p.update();
+
+            const a  = (i / n) * Math.PI * 2;
+            const tx = this.core.x + Math.cos(a) * curRadius;
+            const ty = this.core.y + Math.sin(a) * curRadius;
+            p.x += (tx - p.x) * stiff;
+            p.y += (ty - p.y) * stiff;
+
+            const next = this.points[(i + 1) % n];
+            const edx = next.x - p.x, edy = next.y - p.y;
+            const distSq = edx * edx + edy * edy;
+            if (distSq > 0.01) {
+                const dist = Math.sqrt(distSq);
+                const diff = (dist - segLen) * 0.15;
+                const mx = (edx / dist) * diff, my = (edy / dist) * diff;
+                p.x += mx; p.y += my;
+                next.x -= mx; next.y -= my;
+            }
+            cx += p.x; cy += p.y;
+        }
+        this.x = cx / n;
+        this.y = cy / n;
+
+        if (this.squishAnim > 0.001) this.squishAnim *= 0.88;
+        else this.squishAnim = 0;
+    }
+
+    draw() {
+        const alpha = cfg.alpha * this.life;
+        if (alpha < 0.01) return;
+
+        const pts = this.points, len = pts.length;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < len; i++) {
+            const p1 = pts[i], p2 = pts[(i + 1) % len];
+            ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) * 0.5, (p1.y + p2.y) * 0.5);
+        }
+        ctx.closePath();
+
+        const grad = ctx.createRadialGradient(
+            this.core.x - this.radius * 0.3, this.core.y - this.radius * 0.3, 0,
+            this.core.x, this.core.y, this.radius * 1.5
+        );
+        grad.addColorStop(0,   `rgba(255,255,255,${alpha * 0.5})`);
+        grad.addColorStop(0.2, `rgba(${this.rgbStr},${alpha})`);
+        grad.addColorStop(1,   `rgba(${this.darkStr},${alpha})`);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        const hlOff = this.held ? 0.15 : 0.25;
+        ctx.beginPath();
+        ctx.ellipse(
+            this.core.x - this.radius * hlOff, this.core.y - this.radius * 0.35,
+            this.radius * 0.28, this.radius * 0.15, -0.4, 0, Math.PI * 2
+        );
+        ctx.fillStyle = `rgba(255,255,255,${alpha * (this.held ? 0.35 : 0.22)})`;
+        ctx.fill();
+    }
+
+    isInside(x, y) {
+        const dx = x - this.x, dy = y - this.y;
+        return (dx * dx + dy * dy) < (this.radius * this.radius);
+    }
+}
+
+/* ══════════════════════════════
+   COLLISION — clean momentum transfer
+   
+   Key fixes for no-vibration:
+   1. Anchor is pushed FULLY outside collision range
+      (not 30% — that left it inside, causing the
+       float spring to pull back → collide → repeat)
+   2. Momentum transfer happens via clean 1D elastic
+      collision formula, not additive +=
+   3. cooldown prevents re-triggering same pair
+   ══════════════════════════════ */
+function resolveCollisions() {
+    const n = jellies.length;
+    const bounciness = cfg.bounce;
+
+    for (let i = 0; i < n; i++) {
+        const a = jellies[i];
+        for (let j = i + 1; j < n; j++) {
+            const b = jellies[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const minDist = a.radius + b.radius;
+            const distSq = dx * dx + dy * dy;
+            if (distSq >= minDist * minDist || distSq < 0.0001) continue;
+
+            const dist = Math.sqrt(distSq);
+            const overlap = minDist - dist;
+            const nx = dx / dist, ny = dy / dist;
+
+            const aHeld = a.held, bHeld = b.held;
+
+            // ── Separate cores so they don't overlap ──
+            const sepA = aHeld ? 0 : (bHeld ? 1.0 : 0.5);
+            const sepB = bHeld ? 0 : (aHeld ? 1.0 : 0.5);
+            const sep = overlap + 2; // push 2px past touching to prevent re-collision
+
+            a.core.x -= nx * sep * sepA;
+            a.core.y -= ny * sep * sepA;
+            b.core.x += nx * sep * sepB;
+            b.core.y += ny * sep * sepB;
+
+            // ── Push anchors FULLY out of collision range ──
+            // This is the key anti-vibration fix: anchor must be far
+            // enough that float spring won't drag back into collision
+            if (!aHeld) {
+                a.anchorX -= nx * sep * sepA;
+                a.anchorY -= ny * sep * sepA;
+            }
+            if (!bHeld) {
+                b.anchorX += nx * sep * sepB;
+                b.anchorY += ny * sep * sepB;
+            }
+
+            // ── Surface point separation ──
+            const bRSq = b.radius * b.radius;
+            for (let k = 0; k < a.numPoints; k++) {
+                const p = a.points[k];
+                const pdx = p.x - b.x, pdy = p.y - b.y;
+                const pdSq = pdx * pdx + pdy * pdy;
+                if (pdSq < bRSq && pdSq > 0.01) {
+                    const pd = Math.sqrt(pdSq);
+                    const pen = (b.radius - pd) * 0.4;
+                    p.x += (pdx / pd) * pen; p.y += (pdy / pd) * pen;
                 }
-                if (this.x < 0) this.x = 0; else if (this.x > width) this.x = width;
-                if (this.y < 0) this.y = 0; else if (this.y > height) this.y = height;
             }
-        }
-
-        class Jelly {
-            constructor(x, y, r, color) {
-                this.x = x; this.y = y; this.radius = r; this.color = color;
-                this.points = []; this.numPoints = 20;
-                for (let i = 0; i < this.numPoints; i++) {
-                    const a = (i / this.numPoints) * Math.PI * 2;
-                    this.points.push(new Point(x + Math.cos(a) * r, y + Math.sin(a) * r));
+            const aRSq = a.radius * a.radius;
+            for (let k = 0; k < b.numPoints; k++) {
+                const p = b.points[k];
+                const pdx = p.x - a.x, pdy = p.y - a.y;
+                const pdSq = pdx * pdx + pdy * pdy;
+                if (pdSq < aRSq && pdSq > 0.01) {
+                    const pd = Math.sqrt(pdSq);
+                    const pen = (a.radius - pd) * 0.4;
+                    p.x += (pdx / pd) * pen; p.y += (pdy / pd) * pen;
                 }
-                this.core = new Point(x, y);
             }
-            update() {
-                const damp = parseFloat(ui.jiggle.value);
-                const stiff = parseFloat(ui.firmness.value);
-                this.core.update(damp);
-                let cx = 0, cy = 0;
-                this.points.forEach((p, i) => {
-                    p.update(damp);
-                    const a = (i / this.numPoints) * Math.PI * 2;
-                    const tx = this.core.x + Math.cos(a) * this.radius;
-                    const ty = this.core.y + Math.sin(a) * this.radius;
-                    p.x += (tx - p.x) * stiff; p.y += (ty - p.y) * stiff;
-                    const next = this.points[(i + 1) % this.numPoints];
-                    const dist = Math.hypot(next.x - p.x, next.y - p.y);
-                    const desired = (Math.PI * 2 * this.radius) / this.numPoints;
-                    const diff = (dist - desired) * 0.4;
-                    const nx = ((next.x - p.x) / dist) * diff;
-                    const ny = ((next.y - p.y) / dist) * diff;
-                    p.x += nx; p.y += ny; next.x -= nx; next.y -= ny;
-                    cx += p.x; cy += p.y;
-                });
-                this.x = cx / this.numPoints; this.y = cy / this.numPoints;
-            }
-            draw() {
-                const rgb = hexToRgb(this.color);
-                const alpha = ui.opacity.value;
-                ctx.beginPath();
-                ctx.moveTo(this.points[0].x, this.points[0].y);
-                for (let i = 0; i < this.points.length; i++) {
-                    const p1 = this.points[i];
-                    const p2 = this.points[(i + 1) % this.points.length];
-                    ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+
+            // ── Momentum transfer (fling → fling) ──
+            // Only once per collision event, not every substep
+            if (a.collisionCooldown <= 0 && b.collisionCooldown <= 0) {
+                // Get velocities along collision axis
+                let aVn, bVn, aVt_x, aVt_y, bVt_x, bVt_y;
+
+                if (a.flung || a.held) {
+                    aVn = a.flingVx * nx + a.flingVy * ny;
+                    aVt_x = a.flingVx - aVn * nx;
+                    aVt_y = a.flingVy - aVn * ny;
+                } else {
+                    aVn = 0; aVt_x = 0; aVt_y = 0;
                 }
-                ctx.closePath();
-                const grad = ctx.createRadialGradient(this.core.x - this.radius*0.3, this.core.y - this.radius*0.3, 0, this.core.x, this.core.y, this.radius*1.5);
-                grad.addColorStop(0, `rgba(255, 255, 255, ${alpha*0.4})`);
-                grad.addColorStop(0.2, `rgba(${rgb}, ${alpha})`);
-                grad.addColorStop(1, `rgba(${rgb.split(',').map(v=>v*0.4).join(',')}, ${alpha})`);
-                ctx.fillStyle = grad; ctx.fill();
+
+                if (b.flung || b.held) {
+                    bVn = b.flingVx * nx + b.flingVy * ny;
+                    bVt_x = b.flingVx - bVn * nx;
+                    bVt_y = b.flingVy - bVn * ny;
+                } else {
+                    bVn = 0; bVt_x = 0; bVt_y = 0;
+                }
+
+                // 1D elastic collision along normal (equal mass)
+                // with bounciness as restitution coefficient
+                const newAVn = bVn * bounciness;
+                const newBVn = aVn * bounciness;
+
+                if (!aHeld) {
+                    a.flingVx = newAVn * nx + aVt_x;
+                    a.flingVy = newAVn * ny + aVt_y;
+                    if (Math.abs(newAVn) > 0.5 || a.flung) {
+                        a.flung = true;
+                    }
+                }
+                if (!bHeld) {
+                    b.flingVx = newBVn * nx + bVt_x;
+                    b.flingVy = newBVn * ny + bVt_y;
+                    if (Math.abs(newBVn) > 0.5 || b.flung) {
+                        b.flung = true;
+                    }
+                }
+
+                // cooldown: don't re-process this pair for N frames
+                a.collisionCooldown = 8;
+                b.collisionCooldown = 8;
             }
-            isInside(x, y) { return Math.hypot(x - this.x, y - this.y) < this.radius; }
+
+            a.squishAnim = Math.min(a.squishAnim + 0.25, 1);
+            b.squishAnim = Math.min(b.squishAnim + 0.25, 1);
         }
+    }
+}
 
-        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
-        function createJelly(x, y) { jellies.push(new Jelly(x, y, 80, ui.color.value)); }
-        function clearAll() { jellies = []; }
-        function splitJelly(j) {
-            const idx = jellies.indexOf(j);
-            if(idx > -1 && j.radius > 30) {
-                jellies.splice(idx, 1);
-                const nr = j.radius * 0.7;
-                jellies.push(new Jelly(j.x - nr, j.y, nr, j.color));
-                jellies.push(new Jelly(j.x + nr, j.y, nr, j.color));
-            }
+/* ── Glow ── */
+function drawGlow() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.1;
+    for (let i = 0; i < jellies.length; i++) {
+        const j = jellies[i];
+        if (j.life < 0.1) continue;
+        const r = j.radius * (1.3 + j.squishAnim * 0.4);
+        const grad = ctx.createRadialGradient(j.x, j.y, 0, j.x, j.y, r);
+        grad.addColorStop(0, `rgb(${j.rgbStr})`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(j.x - r, j.y - r, r * 2, r * 2);
+    }
+    ctx.restore();
+}
+
+/* ── Auto-spawn ── */
+const MAX_JELLIES = 12;
+let spawnTimer = 0;
+function autoSpawn() {
+    if (jellies.length >= MAX_JELLIES) return;
+    spawnTimer++;
+    if (spawnTimer < 200) return;
+    spawnTimer = 0;
+    const r = 35 + Math.random() * 50;
+    const margin = r + 20;
+    const x = margin + Math.random() * (width - margin * 2);
+    const y = margin + Math.random() * (height - margin * 2);
+    for (const j of jellies) {
+        const dx = x - j.x, dy = y - j.y;
+        if (dx*dx + dy*dy < (j.radius + r + 30) * (j.radius + r + 30)) return;
+    }
+    jellies.push(new Jelly(x, y, r, randomColor(), true));
+}
+
+/* ── Helpers ── */
+function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+function createJelly(x, y) {
+    for (const j of jellies) {
+        const dx = x - j.x, dy = y - j.y;
+        if (dx*dx + dy*dy < (j.radius + 85) * (j.radius + 85)) return;
+    }
+    jellies.push(new Jelly(x, y, 80, uiEl.color.value, false));
+}
+function clearAll() { jellies = []; pointer.grabbed = null; }
+function splitJelly(j) {
+    const idx = jellies.indexOf(j);
+    if (idx > -1 && j.radius > 30) {
+        jellies.splice(idx, 1);
+        const nr = j.radius * 0.7, gap = nr * 1.3;
+        jellies.push(new Jelly(j.x - gap, j.y, nr, j.color, false));
+        jellies.push(new Jelly(j.x + gap, j.y, nr, j.color, false));
+    }
+}
+function findJellyAt(x, y) {
+    for (let i = jellies.length - 1; i >= 0; i--)
+        if (jellies[i].isInside(x, y)) return jellies[i];
+    return null;
+}
+
+/* ── Grab & Fling ── */
+function grabStart(x, y) {
+    pointer.x = x; pointer.y = y;
+    pointer.px = x; pointer.py = y;
+    pointer.down = true;
+    const j = findJellyAt(x, y);
+    if (j) {
+        pointer.grabbed = j;
+        j.held = true;
+        j.flung = false;
+        j.flingVx = 0; j.flingVy = 0;
+        canvas.classList.add('grabbing');
+    }
+}
+function grabMove(x, y) {
+    pointer.px = pointer.x; pointer.py = pointer.y;
+    pointer.x = x; pointer.y = y;
+}
+function grabEnd() {
+    const j = pointer.grabbed;
+    if (j) {
+        j.held = false;
+        const vx = pointer.x - pointer.px;
+        const vy = pointer.y - pointer.py;
+        const speed = Math.sqrt(vx * vx + vy * vy);
+        if (speed > 2) {
+            j.flung = true;
+            j.flingVx = vx * 0.8;
+            j.flingVy = vy * 0.8;
+            j.core.ox = j.core.x - j.flingVx;
+            j.core.oy = j.core.y - j.flingVy;
+            j.collisionCooldown = 0; // ready to collide immediately
+        } else {
+            j.anchorX = j.core.x; j.anchorY = j.core.y;
+            j.core.ox = j.core.x; j.core.oy = j.core.y;
+            j.floatPx = Math.random() * Math.PI * 2;
+            j.floatPy = Math.random() * Math.PI * 2;
         }
+        canvas.classList.remove('grabbing');
+    }
+    pointer.grabbed = null; pointer.down = false;
+}
 
-        window.addEventListener('resize', resize);
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        window.addEventListener('mousedown', e => {
-            if(e.target.closest('#controls')) return;
-            let hit = false;
-            for(let j of jellies) if(j.isInside(mouse.x, mouse.y)) hit = true;
-            if(!hit) createJelly(mouse.x, mouse.y);
-        });
-        window.addEventListener('dblclick', () => {
-            for(let i=jellies.length-1; i>=0; i--) if(jellies[i].isInside(mouse.x, mouse.y)) { splitJelly(jellies[i]); break; }
-        });
+/* ── Events ── */
+window.addEventListener('resize', resize);
+window.addEventListener('mousedown', e => {
+    if (e.target.closest('#controls')) return;
+    const j = findJellyAt(e.clientX, e.clientY);
+    if (j) grabStart(e.clientX, e.clientY);
+    else createJelly(e.clientX, e.clientY);
+});
+window.addEventListener('mousemove', e => { grabMove(e.clientX, e.clientY); });
+window.addEventListener('mouseup', () => { grabEnd(); });
+window.addEventListener('dblclick', e => {
+    if (e.target.closest('#controls')) return;
+    const j = findJellyAt(e.clientX, e.clientY);
+    if (j) splitJelly(j);
+});
 
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            if(jellies.length > 10) jellies.shift();
-            jellies.forEach(j => { j.update(); j.draw(); });
-            requestAnimationFrame(animate);
-        }
+window.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    if (e.target.closest('#controls')) return;
+    const j = findJellyAt(t.clientX, t.clientY);
+    if (j) grabStart(t.clientX, t.clientY);
+    else createJelly(t.clientX, t.clientY);
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+    grabMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+window.addEventListener('touchend', () => { grabEnd(); });
 
-        resize(); createJelly(width/2, height/2); animate();
-    </script>
+/* ── Loop ── */
+function animate() {
+    ctx.clearRect(0, 0, width, height);
+    readUI(); time++;
+    autoSpawn();
+    while (jellies.length > MAX_JELLIES) {
+        const idx = jellies.findIndex(j => j.autoSpawned);
+        if (idx > -1) jellies.splice(idx, 1); else jellies.shift();
+    }
+
+    for (let s = 0; s < 3; s++) {
+        for (let i = 0; i < jellies.length; i++) jellies[i].update(time);
+        resolveCollisions();
+    }
+
+    drawGlow();
+    for (let i = 0; i < jellies.length; i++) jellies[i].draw();
+    requestAnimationFrame(animate);
+}
+
+resize();
+for (let i = 0; i < 4; i++) {
+    const r = 40 + Math.random() * 45;
+    const x = width * (0.15 + i * 0.2) + (Math.random() - 0.5) * 80;
+    const y = height * 0.3 + Math.random() * height * 0.4;
+    jellies.push(new Jelly(x, y, r, randomColor(), true));
+}
+animate();
+</script>
 </body>
 </html>
