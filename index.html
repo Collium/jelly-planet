@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jelly Planet | Tactile Healing</title>
+    <title>Jelly Multiverse | Glossy & Splittable</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --panel-bg: rgba(255, 255, 255, 0.1);
+            --bg-color: #101015; /* 약간 더 깊은 우주색 */
+            --panel-bg: rgba(0, 0, 0, 0.5);
             --text-color: #ffffff;
         }
 
@@ -16,90 +16,83 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: var(--bg-color);
             font-family: 'Montserrat', sans-serif; color: var(--text-color);
+            user-select: none; /* 텍스트 선택 방지 */
         }
 
-        canvas { display: block; cursor: crosshair; }
+        canvas { display: block; cursor: copy; } /* 기본 커서는 생성 모양 */
 
-        #ui {
-            position: absolute; top: 30px; left: 30px; pointer-events: none;
-        }
-
-        h1 { margin: 0; font-size: 2rem; letter-spacing: -1px; }
-        p { opacity: 0.6; font-size: 0.9rem; }
+        #ui { position: absolute; top: 30px; left: 30px; pointer-events: none; z-index: 2; }
+        h1 { margin: 0; font-size: 1.8rem; letter-spacing: -1px; }
+        p { opacity: 0.6; font-size: 0.8rem; margin: 5px 0; }
+        .inst { font-size: 0.7rem; color: #aaa; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 5px; pointer-events: auto; display: inline-block; margin-top:5px;}
 
         /* Control Panel */
         #controls {
-            position: absolute; top: 30px; right: 30px; width: 260px;
+            position: absolute; top: 30px; right: 30px; width: 250px;
             background: var(--panel-bg); backdrop-filter: blur(15px);
-            padding: 25px; border-radius: 20px; z-index: 10;
+            padding: 20px; border-radius: 15px; z-index: 10;
             border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: auto;
         }
 
-        .control-group { margin-bottom: 15px; }
+        .control-group { margin-bottom: 12px; }
         label {
             display: flex; justify-content: space-between;
-            font-size: 0.7rem; text-transform: uppercase;
-            letter-spacing: 1px; margin-bottom: 8px; font-weight: 700;
+            font-size: 0.65rem; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 5px; font-weight: 700; color: #eee;
         }
 
         input[type="range"], input[type="color"] { width: 100%; cursor: pointer; accent-color: #fff; }
-        input[type="color"] { height: 30px; border: none; background: none; }
+        input[type="color"] { height: 25px; border: none; background: none; padding: 0; }
 
-        button {
-            width: 100%; padding: 12px; background: #fff; color: #000;
-            border: none; border-radius: 10px; cursor: pointer;
-            font-weight: 700; font-size: 0.75rem; transition: 0.3s;
+        button.main-btn {
+            width: 100%; padding: 10px; background: #fff; color: #000;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-weight: 700; font-size: 0.7rem; transition: 0.2s; letter-spacing: 1px;
         }
-        button:hover { transform: scale(1.02); background: #eee; }
+        button.main-btn:hover { background: #ff4d8d; color: white; transform: translateY(-2px); }
 
         .support-section {
-            margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 15px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
         }
         .support-button {
-            display: inline-block; width: 100%; padding: 10px 0;
-            border: 1px solid rgba(255,255,255,0.3); color: #fff;
-            text-decoration: none; font-size: 0.7rem; border-radius: 10px;
-            transition: 0.3s;
+            display: inline-block; width: 100%; padding: 8px 0;
+            border: 1px solid rgba(255,255,255,0.2); color: #ccc;
+            text-decoration: none; font-size: 0.65rem; border-radius: 8px;
+            transition: 0.2s;
         }
-        .support-button:hover { background: rgba(255,255,255,0.1); }
+        .support-button:hover { background: rgba(255,255,255,0.05); color: white; border-color: white; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <h1>Jelly Planet</h1>
-        <p>Poke, pull, and play with the core.</p>
+        <h1>Jelly Multiverse</h1>
+        <div class="inst">Click empty space to Create | Double-Click Jelly to Split</div>
     </div>
 
     <div id="controls">
         <div class="control-group">
-            <label>Jelly Color</label>
-            <input type="color" id="jellyColor" value="#ff4d8d">
+            <label>New Jelly Color</label>
+            <input type="color" id="jellyColor" value="#56ccf2">
         </div>
         <div class="control-group">
-            <label>Stiffness (Elasticity)</label>
-            <input type="range" id="stiffness" min="0.01" max="0.2" step="0.01" value="0.05">
+            <label>Elasticity (Firmness)</label>
+            <input type="range" id="stiffness" min="0.01" max="0.3" step="0.01" value="0.06">
         </div>
         <div class="control-group">
-            <label>Damping (Friction)</label>
-            <input type="range" id="damping" min="0.8" max="0.99" step="0.01" value="0.92">
+            <label>Damping (Jiggle Duration)</label>
+            <input type="range" id="damping" min="0.8" max="0.99" step="0.01" value="0.93">
         </div>
         <div class="control-group">
-            <label>Gravity</label>
-            <input type="range" id="gravity" min="-0.5" max="0.5" step="0.05" value="0">
-        </div>
-        <div class="control-group">
-            <label>Planet Size</label>
-            <input type="range" id="radius" min="50" max="250" step="10" value="150">
+            <label>Global Gravity</label>
+            <input type="range" id="gravity" min="-0.2" max="0.2" step="0.01" value="0.02">
         </div>
         
-        <button onclick="explodeJelly()">EXPLODE & REGEN</button>
+        <button class="main-btn" onclick="clearAll()">CLEAR ALL JELLIES</button>
 
         <div class="support-section">
-            <p style="font-size:0.6rem; color:#aaa; margin-bottom:8px;">Enjoying the touch?</p>
-            <a href="https://buymeacoffee.com/globaldaily" target="_blank" class="support-button">🍵 Buy me a tea</a>
+            <a href="https://buymeacoffee.com/globaldaily" target="_blank" class="support-button">🍵 Support Creator</a>
         </div>
     </div>
 
@@ -109,124 +102,262 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // UI Elements
+        // UI
         const uiColor = document.getElementById('jellyColor');
         const uiStiffness = document.getElementById('stiffness');
         const uiDamping = document.getElementById('damping');
         const uiGravity = document.getElementById('gravity');
-        const uiRadius = document.getElementById('radius');
 
-        let width, height, planet;
+        let width, height;
+        let jellies = [];
         let mouse = { x: -1000, y: -1000, down: false };
+        let dragTarget = null;
+
+        // 색상 유틸리티 (Hex to RGB for gradient)
+        function hexToRgb(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `${r},${g},${b}`;
+        }
 
         class Point {
-            constructor(x, y) {
+            constructor(x, y, baseX, baseY) {
                 this.x = x; this.y = y;
                 this.oldX = x; this.oldY = y;
-                this.baseX = x; this.baseY = y;
+                // baseX/Y are relative to jelly center
+                this.relX = baseX; this.relY = baseY; 
             }
-            update(stiffness, damping, gravity) {
-                // Verlet Integration
+            update(centerX, centerY, stiffness, damping, gravity) {
                 let vx = (this.x - this.oldX) * damping;
                 let vy = (this.y - this.oldY) * damping;
-                
-                this.oldX = this.x;
-                this.oldY = this.y;
+                this.oldX = this.x; this.oldY = this.y;
 
-                // Back to base position
-                this.x += vx + (this.baseX - this.x) * stiffness;
-                this.y += vy + (this.baseY - this.y) * stiffness + gravity;
+                // Target condition: Base shape relative to current center
+                let targetX = centerX + this.relX;
+                let targetY = centerY + this.relY;
 
-                // Mouse Interaction
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 100) {
-                    let angle = Math.atan2(dy, dx);
-                    let force = (100 - dist) * 0.1;
-                    if(mouse.down) force *= 2;
-                    this.x -= Math.cos(angle) * force;
-                    this.y -= Math.sin(angle) * force;
+                this.x += vx + (targetX - this.x) * stiffness;
+                this.y += vy + (targetY - this.y) * stiffness + gravity;
+
+                // Mouse Drag Interaction
+                if(this === dragTarget) {
+                    this.x += (mouse.x - this.x) * 0.3;
+                    this.y += (mouse.y - this.y) * 0.3;
                 }
             }
         }
 
         class Jelly {
-            constructor() {
+            constructor(x, y, radius, color) {
+                this.x = x; this.y = y;
+                this.baseRadius = radius;
+                this.color = color;
+                this.rgb = hexToRgb(color);
                 this.points = [];
-                this.init();
+                this.segments = Math.floor(radius / 4) + 15; // 라디우스에 따라 포인트 수 조절
+                this.segments = Math.max(15, Math.min(this.segments, 40)); // 15~40개 제한
+                this.id = Date.now() + Math.random();
+                this.initPoints();
             }
-            init() {
+
+            initPoints() {
                 this.points = [];
-                const segments = 40;
-                const r = parseFloat(uiRadius.value);
-                for (let i = 0; i < segments; i++) {
-                    let angle = (i / segments) * Math.PI * 2;
-                    let x = width/2 + Math.cos(angle) * r;
-                    let y = height/2 + Math.sin(angle) * r;
-                    this.points.push(new Point(x, y));
+                for (let i = 0; i < this.segments; i++) {
+                    let angle = (i / this.segments) * Math.PI * 2;
+                    let rx = Math.cos(angle) * this.baseRadius;
+                    let ry = Math.sin(angle) * this.baseRadius;
+                    // 포인트 생성 (중심 기준 상대 좌표 저장)
+                    this.points.push(new Point(this.x + rx, this.y + ry, rx, ry));
                 }
             }
+
+            update(stiffness, damping, gravity) {
+                // 1. Calculate average center from current points
+                let avgX = 0, avgY = 0;
+                this.points.forEach(p => { avgX += p.x; avgY += p.y; });
+                this.x = avgX / this.points.length;
+                this.y = avgY / this.points.length;
+
+                // 2. Update points based on center and physics
+                this.points.forEach(p => p.update(this.x, this.y, stiffness, damping, gravity));
+                
+                // 3. Screen Boundary checks (simple)
+                if(this.y + this.baseRadius > height) { // 바닥 충돌 시 튀어오름
+                     this.points.forEach(p => p.oldY = p.y + (p.y - p.oldY) * 0.5 + 2);
+                }
+            }
+
             draw() {
+                // Path 그리기
                 ctx.beginPath();
                 ctx.moveTo(this.points[0].x, this.points[0].y);
-                for (let i = 1; i < this.points.length; i++) {
-                    // Smooth curve between points
-                    let xc = (this.points[i].x + this.points[i-1].x) / 2;
-                    let yc = (this.points[i].y + this.points[i-1].y) / 2;
-                    ctx.quadraticCurveTo(this.points[i-1].x, this.points[i-1].y, xc, yc);
+                for (let i = 0; i < this.points.length; i++) {
+                    let p0 = this.points[i];
+                    let p1 = this.points[(i + 1) % this.points.length];
+                    let xc = (p0.x + p1.x) / 2;
+                    let yc = (p0.y + p1.y) / 2;
+                    ctx.quadraticCurveTo(p0.x, p0.y, xc, yc);
                 }
-                // Close the shape
-                let last = this.points[this.points.length-1];
-                let first = this.points[0];
-                ctx.quadraticCurveTo(last.x, last.y, (last.x+first.x)/2, (last.y+first.y)/2);
-                
-                ctx.fillStyle = uiColor.value;
+                ctx.closePath();
+
+                // --- 질감 구현 핵심 (조명/광택) ---
+
+                // 1. 기본 베이스 그레이디언트 (깊이감)
+                // 빛이 왼쪽 상단(this.x-r, this.y-r)에서 온다고 가정
+                let r = this.baseRadius;
+                let grad = ctx.createRadialGradient(
+                    this.x - r*0.3, this.y - r*0.3, r * 0.1, // 빛을 받는 중심
+                    this.x, this.y, r * 1.2                  // 젤리 전체 영역
+                );
+                grad.addColorStop(0, `rgba(255, 255, 255, 0.3)`); // 아주 밝은 하이라이트
+                grad.addColorStop(0.2, `rgb(${this.rgb})`);         // 원래 색상
+                grad.addColorStop(1, `rgba(${hexToRgb(this.adjustColor(this.color, -40))}, 1)`); // 어두운 그림자
+
+                ctx.fillStyle = grad;
                 ctx.fill();
-                
-                // Shine effect
-                ctx.globalAlpha = 0.2;
-                ctx.fillStyle = '#fff';
+
+                // 2. 표면 하이라이트 (반짝임)
+                ctx.save();
+                ctx.clip(); // 젤리 모양 내부로 제한
+
+                ctx.beginPath();
+                // 왼쪽 상단에 타원형 반사광 배치
+                ctx.ellipse(this.x - r*0.4, this.y - r*0.4, r*0.4, r*0.2, Math.PI/4, 0, Math.PI*2);
+                let highGrad = ctx.createRadialGradient(
+                    this.x - r*0.4, this.y - r*0.4, 0,
+                    this.x - r*0.4, this.y - r*0.4, r*0.4
+                );
+                highGrad.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+                highGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = highGrad;
                 ctx.fill();
-                ctx.globalAlpha = 1.0;
+                ctx.restore();
+            }
+
+            // 색상 밝기 조절 유틸리티
+            adjustColor(hex, amount) {
+                return '#' + hex.replace(/^#/, '').replace(/../g, hex => ('0' + Math.min(255, Math.max(0, parseInt(hex, 16) + amount)).toString(16)).slice(-2));
+            }
+
+            // 젤리 내부에 마우스가 있는지 확인
+            contains(px, py) {
+                // 단순 원형 범위 체크
+                let dx = px - this.x;
+                let dy = py - this.y;
+                return (dx*dx + dy*dy) < (this.baseRadius * this.baseRadius * 1.2); // 약간 여유둠
+            }
+
+            // 포인트 중 마우스와 가장 가까운 것 찾기 (드래그용)
+            getClosestPoint(px, py) {
+                let minDst = Infinity;
+                let closest = null;
+                this.points.forEach(p => {
+                    let dst = Math.hypot(p.x - px, p.y - py);
+                    if(dst < minDst && dst < 30) { // 30px 이내
+                        minDst = dst; closest = p;
+                    }
+                });
+                return closest;
             }
         }
 
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            if(planet) planet.init();
+        // --- 메인 로직 ---
+
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+
+        // 새 젤리 생성
+        function createJelly(x, y) {
+            // 조절창에서 설정된 값 기준
+            const radius = Math.random() * 40 + 60; // 60~100 사이
+            jellies.push(new Jelly(x, y, radius, uiColor.value));
         }
 
-        function explodeJelly() {
-            planet.points.forEach(p => {
-                p.x += (Math.random()-0.5) * 500;
-                p.y += (Math.random()-0.5) * 500;
-            });
+        // 젤리 분할 (더블 클릭)
+        function splitJelly(target) {
+            const idx = jellies.indexOf(target);
+            if(idx === -1 || target.baseRadius < 25) return; // 너무 작으면 안 쪼갬
+
+            jellies.splice(idx, 1); // 원본 삭제
+
+            const newRadius = target.baseRadius * 0.707; // 질량(면적)이 절반이 되는 반지름 (r / sqrt(2))
+            const color = target.color;
+            
+            // 약간 비껴나게 두 개 생성
+             jellies.push(new Jelly(target.x - newRadius, target.y, newRadius, color));
+             jellies.push(new Jelly(target.x + newRadius, target.y, newRadius, color));
         }
 
+        function clearAll() { jellies = []; }
+
+        // --- 이벤트 리스너 ---
         window.addEventListener('resize', resize);
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        window.addEventListener('mousedown', () => mouse.down = true);
-        window.addEventListener('mouseup', () => mouse.down = false);
-        uiRadius.addEventListener('input', () => planet.init());
+
+        canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        
+        canvas.addEventListener('mousedown', e => {
+            mouse.down = true;
+            // 루프를 거꾸로 돌려서 가장 위에 있는 젤리 선택
+            for (let i = jellies.length - 1; i >= 0; i--) {
+                if(jellies[i].contains(mouse.x, mouse.y)) {
+                    // 포인트 드래그 시도
+                    dragTarget = jellies[i].getClosestPoint(mouse.x, mouse.y);
+                    if(dragTarget) return; // 포인트 잡았으면 생성 안 함
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if(mouse.down && !dragTarget) {
+                // 클릭 레이어 UI에 안 걸렸고, 드래그 중이 아니었다면 생성
+                if(!e.target.closest('#controls')) createJelly(mouse.x, mouse.y);
+            }
+            mouse.down = false; dragTarget = null;
+        });
+
+        // HTML 렌더링 방식 변경으로 인한 수정 (e가 mousedown/up에선 정의안됨)
+        canvas.addEventListener('click', e => {
+             // UI 위를 클릭한 경우 무시
+            if(e.target.closest('#controls') || e.target.closest('.inst')) return; 
+
+             // 이미 mousedown/up에서 생성 처리를 하므로 click에선 드래그Target 초기화만
+             dragTarget = null;
+        });
+
+        // 더블 클릭 분할 이벤트
+        canvas.addEventListener('dblclick', e => {
+             for (let i = jellies.length - 1; i >= 0; i--) {
+                if(jellies[i].contains(mouse.x, mouse.y)) {
+                    splitJelly(jellies[i]);
+                    return; // 하나 쪼갰으면 종료
+                }
+            }
+        });
 
         function animate() {
-            ctx.fillStyle = '#1a1a1a';
+            // 잔상 효과 (클리어 대신 약간 투명한 배경 덮기)
+            ctx.fillStyle = 'rgba(16, 16, 21, 0.3)'; 
             ctx.fillRect(0, 0, width, height);
 
             const stiff = parseFloat(uiStiffness.value);
             const damp = parseFloat(uiDamping.value);
             const grav = parseFloat(uiGravity.value);
 
-            planet.points.forEach(p => p.update(stiff, damp, grav));
-            planet.draw();
+            // 퍼포먼스 안전장치: 너무 많으면 오래된 것 삭제
+            if(jellies.length > 15) jellies.shift();
+
+            jellies.forEach(j => {
+                j.update(stiff, damp, grav);
+                j.draw();
+            });
 
             requestAnimationFrame(animate);
         }
 
         resize();
-        planet = new Jelly();
+        // 초기 젤리 두 개 생성
+        jellies.push(new Jelly(width/2 - 150, height/2, 110, "#ff4d8d"));
+        jellies.push(new Jelly(width/2 + 150, height/2, 90, "#56ccf2"));
         animate();
     </script>
 </body>
