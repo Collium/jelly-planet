@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelly Planet | Tactile Healing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: var(--bg-color);
+            font-family: 'Montserrat', sans-serif; color: var(--text-color);
+        }
+
+        canvas { display: block; cursor: crosshair; }
+
+        #ui {
+            position: absolute; top: 30px; left: 30px; pointer-events: none;
+        }
+
+        h1 { margin: 0; font-size: 2rem; letter-spacing: -1px; }
+        p { opacity: 0.6; font-size: 0.9rem; }
+
+        /* Control Panel */
+        #controls {
+            position: absolute; top: 30px; right: 30px; width: 260px;
+            background: var(--panel-bg); backdrop-filter: blur(15px);
+            padding: 25px; border-radius: 20px; z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
+        }
+
+        .control-group { margin-bottom: 15px; }
+        label {
+            display: flex; justify-content: space-between;
+            font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 8px; font-weight: 700;
+        }
+
+        input[type="range"], input[type="color"] { width: 100%; cursor: pointer; accent-color: #fff; }
+        input[type="color"] { height: 30px; border: none; background: none; }
+
+        button {
+            width: 100%; padding: 12px; background: #fff; color: #000;
+            border: none; border-radius: 10px; cursor: pointer;
+            font-weight: 700; font-size: 0.75rem; transition: 0.3s;
+        }
+        button:hover { transform: scale(1.02); background: #eee; }
+
+        .support-section {
+            margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .support-button {
+            display: inline-block; width: 100%; padding: 10px 0;
+            border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            text-decoration: none; font-size: 0.7rem; border-radius: 10px;
+            transition: 0.3s;
+        }
+        .support-button:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>Jelly Planet</h1>
+        <p>Poke, pull, and play with the core.</p>
+    </div>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>Jelly Color</label>
+            <input type="color" id="jellyColor" value="#ff4d8d">
+        </div>
+        <div class="control-group">
+            <label>Stiffness (Elasticity)</label>
+            <input type="range" id="stiffness" min="0.01" max="0.2" step="0.01" value="0.05">
+        </div>
+        <div class="control-group">
+            <label>Damping (Friction)</label>
+            <input type="range" id="damping" min="0.8" max="0.99" step="0.01" value="0.92">
+        </div>
+        <div class="control-group">
+            <label>Gravity</label>
+            <input type="range" id="gravity" min="-0.5" max="0.5" step="0.05" value="0">
+        </div>
+        <div class="control-group">
+            <label>Planet Size</label>
+            <input type="range" id="radius" min="50" max="250" step="10" value="150">
+        </div>
+        
+        <button onclick="explodeJelly()">EXPLODE & REGEN</button>
+
+        <div class="support-section">
+            <p style="font-size:0.6rem; color:#aaa; margin-bottom:8px;">Enjoying the touch?</p>
+            <a href="https://buymeacoffee.com/globaldaily" target="_blank" class="support-button">🍵 Buy me a tea</a>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const uiColor = document.getElementById('jellyColor');
+        const uiStiffness = document.getElementById('stiffness');
+        const uiDamping = document.getElementById('damping');
+        const uiGravity = document.getElementById('gravity');
+        const uiRadius = document.getElementById('radius');
+
+        let width, height, planet;
+        let mouse = { x: -1000, y: -1000, down: false };
+
+        class Point {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.oldX = x; this.oldY = y;
+                this.baseX = x; this.baseY = y;
+            }
+            update(stiffness, damping, gravity) {
+                // Verlet Integration
+                let vx = (this.x - this.oldX) * damping;
+                let vy = (this.y - this.oldY) * damping;
+                
+                this.oldX = this.x;
+                this.oldY = this.y;
+
+                // Back to base position
+                this.x += vx + (this.baseX - this.x) * stiffness;
+                this.y += vy + (this.baseY - this.y) * stiffness + gravity;
+
+                // Mouse Interaction
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 100) {
+                    let angle = Math.atan2(dy, dx);
+                    let force = (100 - dist) * 0.1;
+                    if(mouse.down) force *= 2;
+                    this.x -= Math.cos(angle) * force;
+                    this.y -= Math.sin(angle) * force;
+                }
+            }
+        }
+
+        class Jelly {
+            constructor() {
+                this.points = [];
+                this.init();
+            }
+            init() {
+                this.points = [];
+                const segments = 40;
+                const r = parseFloat(uiRadius.value);
+                for (let i = 0; i < segments; i++) {
+                    let angle = (i / segments) * Math.PI * 2;
+                    let x = width/2 + Math.cos(angle) * r;
+                    let y = height/2 + Math.sin(angle) * r;
+                    this.points.push(new Point(x, y));
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                for (let i = 1; i < this.points.length; i++) {
+                    // Smooth curve between points
+                    let xc = (this.points[i].x + this.points[i-1].x) / 2;
+                    let yc = (this.points[i].y + this.points[i-1].y) / 2;
+                    ctx.quadraticCurveTo(this.points[i-1].x, this.points[i-1].y, xc, yc);
+                }
+                // Close the shape
+                let last = this.points[this.points.length-1];
+                let first = this.points[0];
+                ctx.quadraticCurveTo(last.x, last.y, (last.x+first.x)/2, (last.y+first.y)/2);
+                
+                ctx.fillStyle = uiColor.value;
+                ctx.fill();
+                
+                // Shine effect
+                ctx.globalAlpha = 0.2;
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            if(planet) planet.init();
+        }
+
+        function explodeJelly() {
+            planet.points.forEach(p => {
+                p.x += (Math.random()-0.5) * 500;
+                p.y += (Math.random()-0.5) * 500;
+            });
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousedown', () => mouse.down = true);
+        window.addEventListener('mouseup', () => mouse.down = false);
+        uiRadius.addEventListener('input', () => planet.init());
+
+        function animate() {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+
+            const stiff = parseFloat(uiStiffness.value);
+            const damp = parseFloat(uiDamping.value);
+            const grav = parseFloat(uiGravity.value);
+
+            planet.points.forEach(p => p.update(stiff, damp, grav));
+            planet.draw();
+
+            requestAnimationFrame(animate);
+        }
+
+        resize();
+        planet = new Jelly();
+        animate();
+    </script>
+</body>
+</html>
